@@ -46,6 +46,7 @@ boost::format g_format;
 bool save_all_image, save_image_service;
 std::string encoding;
 bool request_start_end;
+bool stamped_filename;
 
 
 bool service(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
@@ -153,7 +154,7 @@ private:
     }
 
     if (!image.empty()) {
-      try {
+	  try {
         filename = (g_format).str();
       } catch (...) { g_format.clear(); }
       try {
@@ -162,6 +163,15 @@ private:
       try { 
         filename = (g_format % count_ % "jpg").str();
       } catch (...) { g_format.clear(); }
+
+      if (stamped_filename) {
+      	std::size_t found = filename.find_last_of("/\\");
+      	std::string path = filename.substr(0, found + 1);
+      	std::string basename = filename.substr(found + 1);
+      	std::stringstream ss;
+      	ss << image_msg->header.stamp.toNSec() << basename;
+      	filename = path + ss.str();
+  	  }
 
       if ( save_all_image || save_image_service ) {
         cv::imwrite(filename, image);
@@ -204,10 +214,11 @@ int main(int argc, char** argv)
 
   ros::NodeHandle local_nh("~");
   std::string format_string;
-  local_nh.param("filename_format", format_string, std::string("left%04i.%s"));
+  local_nh.param("filename_format", format_string, std::string("rgb.%s"));
   local_nh.param("encoding", encoding, std::string("bgr8"));
   local_nh.param("save_all_image", save_all_image, true);
   local_nh.param("request_start_end", request_start_end, false);
+  local_nh.param("stamped_filename", stamped_filename, false);
   g_format.parse(format_string);
   ros::ServiceServer save = local_nh.advertiseService ("save", service);
 
